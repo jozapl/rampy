@@ -38,7 +38,7 @@ Kompleksowy system webowy w architekturze klient-serwer do zarządzania, planowa
 ### 1. Klonowanie repozytorium
 
 ```bash
-git clone [https://github.com/jozapl/nazwa-repozytorium.git](https://github.com/jozapl/nazwa-repozytorium.git)
+git clone [https://github.com/jozapl/rampy.git](https://github.com/jozapl/rampy.git)
 cd nazwa-repozytorium
 ```
 
