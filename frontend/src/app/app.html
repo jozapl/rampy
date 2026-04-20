@@ -1,0 +1,302 @@
+<div *ngIf="!isLoggedIn" class="main-login-container">
+  <div class="main-login-box">
+    <h1>Logowanie do systemu</h1>
+    <input type="text" [(ngModel)]="loginUser" placeholder="Nazwa użytkownika">
+    <input type="password" [(ngModel)]="loginPass" placeholder="Hasło">
+    <button (click)="login()">ZALOGUJ SIĘ</button>
+  </div>
+</div>
+
+<div *ngIf="isLoggedIn" class="container" (click)="showSettings = false">
+  <header class="header" (click)="$event.stopPropagation()">
+    <button class="btn wh" (click)="showSettings = !showSettings">⚙️</button>
+    <div class="box">
+      <button class="nav" (click)="changeDate(-1)">❮</button>
+      <input type="date" [(ngModel)]="selectedDate" (change)="onDateChange()">
+      <button class="nav" (click)="changeDate(1)">❯</button>
+    </div>
+    <button class="btn wh" (click)="loadData()">🔄</button>
+    
+    <div style="margin-left: auto; display: flex; align-items: center;">
+      <span style="color: white; margin-right: 10px;">Witaj, {{loginUser}} ({{userRole}})</span>
+      <button *ngIf="userRole === 'Admin'" class="btn wh" (click)="openAdminPanel(); $event.stopPropagation()">🔒</button>
+      <button class="btn wh" style="background: #e74c3c; color: white;" (click)="logout()">🚪</button>
+    </div>
+
+    <div *ngIf="showSettings" class="dropdown">
+      <label>AUTO-ODŚWIEŻANIE <input type="checkbox" [(ngModel)]="autoRefreshEnabled" (change)="toggleAutoRefresh()"></label>
+      <input type="number" [(ngModel)]="autoRefreshMinutes" (change)="toggleAutoRefresh()">
+      <hr>
+      <label>AUTO-PRZEWIJANIE <input type="checkbox" [(ngModel)]="autoScrollEnabled" (change)="toggleAutoScroll()"></label>
+      <input type="number" [(ngModel)]="autoScrollSpeed" (change)="toggleAutoScroll()">
+      <hr>
+      <label>WYSOKOŚĆ GODZINY</label>
+      <input type="number" [(ngModel)]="pixelsPerHour">
+    </div>
+  </header>
+
+  <div class="header-row sticky">
+    <div class="time-col-h"><div class="head">GODZ</div></div>
+    <div *ngFor="let res of resources" class="res-col-h"><div class="head">{{res}}</div></div>
+  </div>
+
+  <main class="grid">
+    <div class="time-col">
+      <div class="rows rel">
+        <div *ngFor="let idx of rowIndices" class="r" [style.height.px]="pixelsPerHour"></div>
+        <div *ngFor="let h of markerHours; let i = index" class="lbl" [style.top.px]="i * pixelsPerHour">
+          <span *ngIf="i>0">{{h}}:00</span>
+        </div>
+      </div>
+    </div>
+
+    <div *ngFor="let res of resources" class="res-col">
+      <div class="rows rel">
+        <div *ngFor="let idx of rowIndices" class="r" [style.height.px]="pixelsPerHour"></div>
+        <div *ngFor="let e of groupedEvents[res]" class="ev" [ngStyle]="getEventStyle(e)" (click)="openDetails(e,$event)">
+          <div>{{formatTime(e.DataOd)}} - {{formatTime(e.DataDo)}}</div>
+          <div>{{e.dokument}} {{e.status}}</div>
+          <div>POJAZD: {{e.pojazd}}</div>
+          <div>KIEROWCA: {{e.kierowca}}</div>
+          <div>PRZEWOŹNIK: {{e.przewoznik}}</div>
+          <div>WYSTAWCA: {{e.wystawca}}</div>
+          <div>ILOŚĆ: {{e.ilosc}}</div>
+          <div>Z: {{e.skad_nazwa}} {{e.skad_miasto}}</div>
+          <div>DO: {{e.dokad_nazwa}} {{e.dokad_miasto}}</div>
+          <div>TOWAR: {{e.towar}}</div>
+          <div>INFO: {{e.info}}</div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<div *ngIf="selectedEvent" class="modal-ov" (click)="closeDetails()">
+  <div class="modal-box" (click)="$event.stopPropagation()" [style.background]="getEventColor(selectedEvent)">
+    <div class="modal-scr">
+      <div>{{formatTime(selectedEvent.DataOd)}} - {{formatTime(selectedEvent.DataDo)}}</div>
+      <div>{{selectedEvent.dokument}} {{selectedEvent.status}}</div>
+      <div>POJAZD: {{selectedEvent.pojazd}}</div>
+      <div>KIEROWCA: {{selectedEvent.kierowca}}</div>
+      <div>PRZEWOŹNIK: {{selectedEvent.przewoznik}}</div>
+      <div>WYSTAWCA: {{selectedEvent.wystawca}}</div>
+      <div>ILOŚĆ: {{selectedEvent.ilosc}}</div>
+      <div>Z: {{selectedEvent.skad_nazwa}} {{selectedEvent.skad_miasto}}</div>
+      <div>DO: {{selectedEvent.dokad_nazwa}} {{selectedEvent.dokad_miasto}}</div>
+      <div>TOWAR: {{selectedEvent.towar}}</div>
+      <div>INFO: {{selectedEvent.info}}</div>
+    </div>
+    <button class="close-btn" (click)="closeDetails()">ZAMKNIJ</button>
+  </div>
+</div>
+
+<div *ngIf="isAdminView" class="modal-ov admin-ov" (click)="isAdminView = false">
+  <div class="modal-box admin-box" (click)="$event.stopPropagation()">
+    <div class="admin-header">
+      <h2>PANEL ADMINISTRATORA</h2>
+      <button class="btn wh" (click)="isAdminView = false">✖</button>
+    </div>
+
+    <div class="admin-content">
+      <div class="admin-tabs">
+        <button class="tab-btn" [class.active]="adminTab === 'awizacje'" (click)="setAdminTab('awizacje')">AWIZACJE</button>
+        <button class="tab-btn" [class.active]="adminTab === 'slowniki'" (click)="setAdminTab('slowniki')">SŁOWNIKI</button>
+        <button class="tab-btn" [class.active]="adminTab === 'ustawienia'" (click)="setAdminTab('ustawienia')">USTAWIENIA</button>
+        <button class="tab-btn" [class.active]="adminTab === 'uzytkownicy'" (click)="setAdminTab('uzytkownicy')">UŻYTKOWNICY</button>
+      </div>
+
+      <div *ngIf="adminTab === 'awizacje'">
+        <div style="margin-bottom: 15px;">
+          <button class="action-btn save" (click)="openAddAwizacja()">+ DODAJ NOWĄ AWIZACJĘ</button>
+        </div>
+
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th>Godziny</th><th>Dokument</th><th>Rampa</th><th>Status</th><th>Akcje</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let a of adminAwizacje">
+              <td>{{formatTime(a.DataOd)}} - {{formatTime(a.DataDo)}}</td>
+              <td>{{a.dokument}}</td>
+              <td>{{a.rampa}}</td>
+              <td>
+                <select [(ngModel)]="a.status" (change)="updateStatus(a.id, a.status)">
+                  <option value="NOWY">NOWY</option>
+                  <option value="ZAPLANOWANY">ZAPLANOWANY</option>
+                  <option value="W PRZYGOTOWANIU">W PRZYGOTOWANIU</option>
+                  <option value="NA PLACU">NA PLACU</option>
+                  <option value="W ZAŁADUNKU">W ZAŁADUNKU</option>
+                  <option value="W DRODZE">W DRODZE</option>
+                  <option value="OPÓŹNIONY">OPÓŹNIONY</option>
+                  <option value="ZAKOŃCZONA">ZAKOŃCZONA</option>
+                  <option value="ANULOWANA">ANULOWANA</option>
+                  <option value="AWARIA">AWARIA</option>
+                </select>
+              </td>
+              <td>
+                <button class="action-btn" (click)="openEditAwizacja(a)">Edytuj</button>
+                <button class="action-btn del" (click)="deleteAwizacja(a.id)">Usuń</button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div *ngIf="adminTab === 'slowniki'">
+        <div style="margin-bottom: 15px; display: flex; gap: 10px; align-items: center;">
+          <label>Wybierz słownik: 
+            <select [(ngModel)]="wybranySlownikTyp" (change)="loadSlowniki()" style="padding: 6px;">
+              <option value="ramp">Rampy</option>
+              <option value="przewoznikow">Przewoźnicy</option>
+              <option value="kierowcow">Kierowcy</option>
+              <option value="towarow">Towary</option>
+            </select>
+          </label>
+          <button class="action-btn save" (click)="openAddSlownik()">+ DODAJ POZYCJĘ</button>
+        </div>
+
+        <table class="admin-table">
+          <thead><tr><th>ID</th><th>Nazwa</th><th>Akcje</th></tr></thead>
+          <tbody>
+            <tr *ngFor="let s of slowniki[wybranySlownikTyp]">
+              <td>{{s.id}}</td>
+              <td>{{s.nazwa}}</td>
+              <td>
+                <button class="action-btn" (click)="openEditSlownik(s)">Edytuj</button>
+                <button class="action-btn del" (click)="deleteSlownik(s.id)">Usuń</button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div *ngIf="adminTab === 'ustawienia'">
+        <div class="admin-form">
+          <label>Wymuś Auto-Odświeżanie <input type="checkbox" [(ngModel)]="ustawieniaG.auto_refresh"></label>
+          <label>Odświeżanie (min) <input type="number" [(ngModel)]="ustawieniaG.refresh_min"></label>
+          <label>Wymuś Auto-Przewijanie <input type="checkbox" [(ngModel)]="ustawieniaG.auto_scroll"></label>
+          <label>Prędkość przewijania <input type="number" [(ngModel)]="ustawieniaG.scroll_speed"></label>
+          <button class="action-btn save full-w" (click)="zapiszUstawieniaGlobalne()">ZAPISZ GLOBALNE USTAWIENIA</button>
+        </div>
+      </div>
+
+      <div *ngIf="adminTab === 'uzytkownicy'">
+        <div style="margin-bottom: 15px;">
+          <button class="action-btn save" (click)="openAddUser()">+ DODAJ PRACOWNIKA</button>
+        </div>
+        <table class="admin-table">
+          <thead><tr><th>ID</th><th>Nazwa Użytkownika</th><th>Rola</th><th>Akcje</th></tr></thead>
+          <tbody>
+            <tr *ngFor="let u of adminUsers">
+              <td>{{u.id}}</td>
+              <td>{{u.username}}</td>
+              <td>{{u.role}}</td>
+              <td>
+                <button class="action-btn del" *ngIf="u.username !== 'admin'" (click)="deleteUser(u.id)">Usuń</button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<div *ngIf="showAwizacjaModal" class="sub-modal-ov" (click)="closeAwizacjaModal()">
+  <div class="sub-modal-box large" (click)="$event.stopPropagation()">
+    <h3>{{editRampa.id ? 'Edytuj Awizację' : 'Dodaj Nową Awizację'}}</h3>
+    <div class="admin-form" style="margin-bottom: 0;">
+      <label>Data Od <input type="datetime-local" [(ngModel)]="editRampa.data_od"></label>
+      <label>Data Do <input type="datetime-local" [(ngModel)]="editRampa.data_do"></label>
+      <label>Dokument <input type="text" [(ngModel)]="editRampa.dokument"></label>
+      <label>Rampa 
+        <select [(ngModel)]="editRampa.rampa">
+          <option *ngFor="let r of slowniki.ramp" [value]="r.nazwa">{{r.nazwa}}</option>
+        </select>
+      </label>
+      <label>Status
+        <select [(ngModel)]="editRampa.status">
+          <option value="NOWY">NOWY</option>
+          <option value="ZAPLANOWANY">ZAPLANOWANY</option>
+          <option value="W PRZYGOTOWANIU">W PRZYGOTOWANIU</option>
+          <option value="NA PLACU">NA PLACU</option>
+          <option value="W ZAŁADUNKU">W ZAŁADUNKU</option>
+          <option value="W DRODZE">W DRODZE</option>
+          <option value="OPÓŹNIONY">OPÓŹNIONY</option>
+          <option value="ZAKOŃCZONA">ZAKOŃCZONA</option>
+          <option value="ANULOWANA">ANULOWANA</option>
+          <option value="AWARIA">AWARIA</option>
+        </select>
+      </label>
+      <label>Pojazd <input type="text" [(ngModel)]="editRampa.pojazd"></label>
+      <label>Kierowca 
+        <select [(ngModel)]="editRampa.kierowca">
+          <option *ngFor="let k of slowniki.kierowcow" [value]="k.nazwa">{{k.nazwa}}</option>
+        </select>
+      </label>
+      <label>Wystawca <input type="text" [(ngModel)]="editRampa.wystawca"></label>
+      <label>Przewoźnik 
+        <select [(ngModel)]="editRampa.przewoznik">
+          <option *ngFor="let p of slowniki.przewoznikow" [value]="p.nazwa">{{p.nazwa}}</option>
+        </select>
+      </label>
+      <label>Skąd Nazwa <input type="text" [(ngModel)]="editRampa.skad_nazwa"></label>
+      <label>Skąd Miasto <input type="text" [(ngModel)]="editRampa.skad_miasto"></label>
+      <label>Dokąd Nazwa <input type="text" [(ngModel)]="editRampa.dokad_nazwa"></label>
+      <label>Dokąd Miasto <input type="text" [(ngModel)]="editRampa.dokad_miasto"></label>
+      <label>Towar 
+        <select [(ngModel)]="editRampa.towar">
+          <option *ngFor="let t of slowniki.towarow" [value]="t.nazwa">{{t.nazwa}}</option>
+        </select>
+      </label>
+      <label>Ilość <input type="number" [(ngModel)]="editRampa.ilosc"></label>
+      <label>Info <input type="text" [(ngModel)]="editRampa.info"></label>
+    </div>
+    <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 10px;">
+      <button class="action-btn del" (click)="closeAwizacjaModal()">ANULUJ</button>
+      <button class="action-btn save" (click)="saveAwizacja()">ZAPISZ</button>
+    </div>
+  </div>
+</div>
+
+<div *ngIf="showSlownikModal" class="sub-modal-ov" (click)="closeSlownikModal()">
+  <div class="sub-modal-box" (click)="$event.stopPropagation()">
+    <h3>{{editSlownikItem.id ? 'Edytuj Pozycję Słownika' : 'Dodaj Pozycję Słownika'}}</h3>
+    <label style="display:flex; flex-direction:column; gap:4px;">
+      Nazwa:
+      <input type="text" [(ngModel)]="editSlownikItem.nazwa" style="padding:6px; border:1px solid #aaa;">
+    </label>
+    <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 10px;">
+      <button class="action-btn del" (click)="closeSlownikModal()">ANULUJ</button>
+      <button class="action-btn save" (click)="saveSlownik()">ZAPISZ</button>
+    </div>
+  </div>
+</div>
+
+<div *ngIf="showUserModal" class="sub-modal-ov" (click)="closeUserModal()">
+  <div class="sub-modal-box" (click)="$event.stopPropagation()">
+    <h3>Dodaj Nowego Pracownika</h3>
+    <label style="display:flex; flex-direction:column; gap:4px;">
+      Nazwa Użytkownika:
+      <input type="text" [(ngModel)]="newUser.username" style="padding:6px; border:1px solid #aaa;">
+    </label>
+    <label style="display:flex; flex-direction:column; gap:4px;">
+      Hasło:
+      <input type="password" [(ngModel)]="newUser.password" style="padding:6px; border:1px solid #aaa;">
+    </label>
+    <label style="display:flex; flex-direction:column; gap:4px;">
+      Rola:
+      <select [(ngModel)]="newUser.role" style="padding:6px; border:1px solid #aaa;">
+        <option value="Pracownik">Pracownik</option>
+        <option value="Admin">Admin</option>
+      </select>
+    </label>
+    <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 10px;">
+      <button class="action-btn del" (click)="closeUserModal()">ANULUJ</button>
+      <button class="action-btn save" (click)="saveUser()">ZAPISZ</button>
+    </div>
+  </div>
+</div>

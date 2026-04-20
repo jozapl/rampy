@@ -1,0 +1,10 @@
+fastapi
+uvicorn
+pydantic
+pymssql
+pyyaml
+mysql-connector-python
+PyJWT
+python-multipart
+pytest
+httpx
