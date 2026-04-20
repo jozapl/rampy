@@ -38,8 +38,8 @@ Kompleksowy system webowy w architekturze klient-serwer do zarządzania, planowa
 ### 1. Klonowanie repozytorium
 
 ```bash
-git clone [https://github.com/jozapl/rampy.git](https://github.com/jozapl/rampy.git)
-cd nazwa-repozytorium
+git clone https://github.com/jozapl/rampy.git
+cd rampy
 ```
 
 ### 2. Konfiguracja Backendu
